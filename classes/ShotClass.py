@@ -1,7 +1,8 @@
 """Модель выстрела из пушки. Все величины в СИ"""
 from pandas import DataFrame
 import numpy as np
-import scipy as sp
+import scipy.integrate as spint
+import matplotlib.pyplot as plt
 
 R_gas = 8.31
 """Газовая постоянная"""
@@ -77,6 +78,7 @@ class Shot:
         self.mTime_step = kwargs['Time_step']
         self.mTime_length = kwargs['Time_length']
         self.prepare_data()
+        self.find_solution()
 
     def init_default(self):
         """Инициализация по умолчанию"""
@@ -93,20 +95,21 @@ class Shot:
         self.mTime_length = 100.0e-6
         self.mGun_length = 1.0
         self.prepare_data()
+        self.find_solution()
 
     def prepare_data(self):
         """Подготовка данных к моделированию"""
         self.mNu_gas = self.mP_valve * self.mV_valve / (self.mT_gas * R_gas)
-        self.mM_gas = self.mAtom * self.mNu * N_Avagadro
+        self.mM_gas = self.mPart * self.mNu_gas * N_Avagadro
         self.mOmega_0 = 1.0 / np.sqrt(self.mL0 * self.mCapacity)
         self.mL_linear = 2.0e-7 * np.log(self.mD_out / self.mD_in)
         self.mQ_gun = np.power(self.mL_linear * self.mCapacity * self.mU0, 2) / (2.0 * self.mM_gas * self.mL0)
         self.mTime = np.arange(0.0, self.mTime_length, self.mTime_step)
         self.mTime_norm = self.mTime * self.mOmega_0
-        self.mSpeed_mult = -1.0 / (self.mL_linear * np.sqrt(self.mCapacity / self.mL0))
-        self.mCoordinat_mult = -self.mL0 / self.mL_linear
+        self.mSpeed_mult = 1.0 / (self.mL_linear * np.sqrt(self.mCapacity / self.mL0))
+        self.mCoordinat_mult = self.mL0 / self.mL_linear
         self.mVoltage_mult = self.mU0
-        self.mCurrent_mult = self.mCapacity*self.mU0*self.mOmega_0
+        self.mCurrent_mult = self.mCapacity * self.mU0 * self.mOmega_0
 
     def find_solution(self):
         def WorkEquation(y, t):
@@ -116,4 +119,40 @@ class Shot:
             ret3 = (y[2] - (y[0] * y[3])) / (1.0 + y[1])
             return [ret0, ret1, ret2, ret3]
 
+        Solution = spint.odeint(WorkEquation, self.mInitial_solution, self.mTime_norm)
+        Solution_T = Solution.T
+        y_ = Solution_T[0]
+        y = Solution_T[1]
+        f = Solution_T[2]
+        f_ = Solution_T[3]
+        self.mSpeed = y_ * self.mSpeed_mult / 1.0e3
+        self.mCoordinat = y * self.mCoordinat_mult
+        self.mVoltage = f * self.mVoltage_mult / 1.0e3
+        self.mCurrent = f_ * self.mCurrent_mult / 1.0e3
 
+    def plot(self):
+        plt.subplot(4, 1, 1)
+        plt.plot(self.mTime * 1.0e6, self.mVoltage)
+        plt.xlabel("Время, мкс")
+        plt.ylabel("Напряжение, кВ")
+        plt.grid()
+
+        plt.subplot(4, 1, 2)
+        plt.plot(self.mTime * 1.0e6, self.mCurrent)
+        plt.xlabel("Время, мкс")
+        plt.ylabel("Ток, кА")
+        plt.grid()
+
+        plt.subplot(4, 1, 3)
+        plt.plot(self.mTime * 1.0e6, self.mSpeed)
+        plt.xlabel("Время, мкс")
+        plt.ylabel("Скорость, км/с")
+        plt.grid()
+
+        plt.subplot(4, 1, 4)
+        plt.plot(self.mTime * 1.0e6, self.mCoordinat)
+        plt.xlabel("Время, мкс")
+        plt.ylabel("Координата, м")
+        plt.grid()
+
+        plt.show()
