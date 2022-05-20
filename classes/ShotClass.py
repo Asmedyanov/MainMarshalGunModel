@@ -1,5 +1,4 @@
 """Модель выстрела из пушки. Все величины в СИ"""
-from pandas import DataFrame
 import numpy as np
 import scipy.integrate as spint
 import matplotlib.pyplot as plt
@@ -125,10 +124,10 @@ class Shot:
         y = Solution_T[1]
         f = Solution_T[2]
         f_ = Solution_T[3]
-        self.mSpeed = y_ * self.mSpeed_mult / 1.0e3
+        self.mSpeed = y_ * self.mSpeed_mult
         self.mCoordinat = y * self.mCoordinat_mult
-        self.mVoltage = f * self.mVoltage_mult / 1.0e3
-        self.mCurrent = f_ * self.mCurrent_mult / 1.0e3
+        self.mVoltage = f * self.mVoltage_mult
+        self.mCurrent = f_ * self.mCurrent_mult
 
     def plot(self):
         plt.subplot(4, 1, 1)
